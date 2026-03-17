@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<!-- ============================================================
+     StellAura — Stellar Wallet Explorer dApp
+     Built for: Stellar Philippines UniTour Hackathon 2026
+     Network:   Stellar Testnet
+     API:       Stellar Horizon (horizon-testnet.stellar.org)
+     Author:    UE Caloocan CS Student
+     ============================================================ -->
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StellAura — Stellar Wallet Explorer</title>
+
+  <!-- Google Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&family=Cabinet+Grotesk:wght@400;500;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+
+    /* ============================================================
+       DESIGN TOKENS (CSS Variables)
+       Change these to retheme the entire app easily.
+       ============================================================ */
+    :root {
+      /* Backgrounds */
+      --bg:         #f5f3ef;   /* Main page background (warm off-white) */
+      --bg2:        #edeae3;   /* Secondary background (slightly darker) */
+      --card:       #ffffff;   /* Card / panel background */
+
+      /* Text */
+      --ink:        #141210;   /* Primary text (near-black) */
+      --ink2:       #3a3630;   /* Secondary text */
+      --ink3:       #7a7368;   /* Muted / hint text */
+
+      /* Borders */
+      --line:       #d9d4cb;   /* Border / divider color */
+
+      /* Accent colors */
+      --accent:     #1a56e8;   /* Blue — primary action / XLM balance */
+      --accent-lt:  #dce8ff;   /* Light blue — badge backgrounds */
+      --green:      #0d7a55;   /* Green — incoming transactions */
+      --green-lt:   #d4f0e7;   /* Light green — incoming badge bg */
+      --red:        #c0392b;   /* Red — outgoing transactions */
+      --red-lt:     #fde8e6;   /* Light red — outgoing badge bg */
+      --gold:       #a07820;   /* Gold — subentry stat card */
+      --gold-lt:    #fdf3d8;   /* Light gold (reserved for future use) */
+
+      /* Typography */
+      --font-mono:    'DM Mono', monospace;          /* Code, labels, hashes */
+      --font-display: 'Syne', sans-serif;            /* Headings, logo */
+      --font-body:    'Cabinet Grotesk', sans-serif; /* Body text */
+
+      /* Misc */
+      --radius: 12px; /* Default border radius for cards */
+    }
+
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Subtle grid texture overlay on the background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.4;
+    }
+
+    /* Utility: hide an element */
+    .hidden {
+      display: none !important;
+    }
+
+
+    /* ============================================================
+       PAGE LAYOUT
+       Two-column grid: sidebar (fixed) | content (scrollable)
+       ============================================================ */
+    .page {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 290px 1fr;
+      min-height: 100vh;
+    }
+
+
+    /* ============================================================
+       SIDEBAR
+       Dark panel on the left containing logo, search, and info.
+       ============================================================ */
+    .sidebar {
+      background: var(--ink);
+      color: var(--bg);
+      padding: 32px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+
+      /* Keeps sidebar fixed while content scrolls */
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    /* --- Logo area --- */
+    .logo-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .logo-name {
+      font-family: var(--font-display);
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.03em;
+    }
+
+    .logo-tagline {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: #5a5450;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    /* Network status pill (shows "TESTNET LIVE") */
+    .net-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: #1c1a16;
+      border: 1px solid #2c2a24;
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: #5de8a0;
+      width: fit-content;
+      margin-top: 4px;
+    }
+
+    /* Animated green dot inside the network pill */
+    .net-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #5de8a0;
+      box-shadow: 0 0 8px #5de8a0;
+      animation: blink 2.4s ease-in-out infinite;
+    }
+
+    /* --- Sidebar section labels --- */
+    .sb-label {
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #444038;
+      margin-bottom: 9px;
+    }
+
+    /* --- Wallet address input --- */
+    .wallet-input {
+      width: 100%;
+      background: #1a1814;
+      border: 1px solid #2c2a24;
+      border-radius: 8px;
+      padding: 11px 13px;
+      color: #e0dcd4;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      outline: none;
+      resize: none;
+      line-height: 1.6;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .wallet-input::placeholder {
+      color: #444038;
+    }
+
+    .wallet-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px #1a56e828;
+    }
+
+    /* --- Explore button --- */
+    .lookup-btn {
+      width: 100%;
+      margin-top: 10px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .lookup-btn:hover {
+      background: #0e3ebf;
+      transform: translateY(-1px);
+    }
+
+    .lookup-btn:active {
+      transform: translateY(0);
+    }
+
+    .lookup-btn:disabled {
+      background: #252220;
+      color: #444038;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* --- Inline error message below the button --- */
+    .error-msg {
+      margin-top: 10px;
+      background: #220c0c;
+      border: 1px solid #4a1010;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.63rem;
+      color: #ff7060;
+      display: none; /* shown via JS when an error occurs */
+      line-height: 1.5;
+    }
+
+    /* --- "How it works" steps --- */
+    .how-section {
+      flex: 1; /* fills remaining sidebar space */
+    }
+
+    .how-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .how-step {
+      display: flex;
+      gap: 11px;
+    }
+
+    .step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #222018;
+      border: 1px solid #333028;
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      color: #555048;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-text {
+      font-size: 0.73rem;
+      color: #706860;
+      line-height: 1.55;
+    }
+
+    .step-text strong {
+      color: #b0a898;
+      font-weight: 600;
+    }
+
+    /* --- Sidebar footer links --- */
+    .sb-footer {
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      color: #333028;
+      line-height: 2;
+    }
+
+    .sb-footer a {
+      color: #4a4438;
+      text-decoration: none;
+    }
+
+    .sb-footer a:hover {
+      color: #807868;
+    }
+
+
+    /* ============================================================
+       CONTENT AREA (right side of the grid)
+       Contains topbar + main scrollable area.
+       ============================================================ */
+    .content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* --- Topbar (sticky header above main content) --- */
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      padding: 14px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10; /* stays above scrolling content */
+    }
+
+    .topbar-left {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Short address shown in topbar after a wallet loads */
+    .addr-chip {
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 4px 11px;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--ink2);
+    }
+
+    /* Copy address button in topbar */
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 4px 11px;
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--ink3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .copy-btn:hover {
+      background: var(--ink);
+      color: #ffffff;
+      border-color: var(--ink);
+    }
+
+    /* --- Main scrollable content area --- */
+    .main {
+      flex: 1;
+      padding: 36px 36px 64px;
+    }
+
+
+    /* ============================================================
+       STATE BOXES
+       Centered content shown when the app is in different states:
+       - Placeholder (nothing loaded yet)
+       - Loading (waiting for API response)
+       ============================================================ */
+    .state-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 460px;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .state-box h3 {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--ink2);
+    }
+
+    .state-box p {
+      color: var(--ink3);
+      font-size: 0.83rem;
+      max-width: 320px;
+    }
+
+    /* Clickable sample address button */
+    .sample-btn {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--ink3);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .sample-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .hint-label {
+      font-size: 0.72rem;
+      color: var(--ink3);
+    }
+
+    /* Spinning loader circle */
+    .spinner {
+      width: 38px;
+      height: 38px;
+      border: 2px solid var(--line);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .load-text {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--ink3);
+    }
+
+
+    /* ============================================================
+       DASHBOARD
+       Shown after a wallet is successfully loaded.
+       Hidden by default; revealed via JS.
+       ============================================================ */
+    #dashboard {
+      display: none;
+    }
+
+    /* --- Stat cards row (Balance, Operations, Subentries) --- */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px 20px 16px;
+      position: relative;
+      overflow: hidden;
+      animation: up 0.4s ease both;
+    }
+
+    /* Colored top bar on each stat card (acts as an accent indicator) */
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .stat-card.c-blue::after  { background: var(--accent); }
+    .stat-card.c-green::after { background: var(--green); }
+    .stat-card.c-gold::after  { background: var(--gold); }
+
+    .stat-icon-wrap {
+      margin-bottom: 14px;
+    }
+
+    .stat-lbl {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink3);
+      margin-bottom: 5px;
+    }
+
+    .stat-val {
+      font-family: var(--font-display);
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: var(--ink);
+      line-height: 1;
+      word-break: break-all;
+    }
+
+    .stat-hint {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--ink3);
+      margin-top: 5px;
+    }
+
+    /* --- Section divider header (above transaction list) --- */
+    .sec-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .sec-head h2 {
+      font-family: var(--font-display);
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    /* Horizontal line that fills remaining space */
+    .sec-line {
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    /* Operation count badge (e.g. "12 ops") */
+    .sec-count {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 10px;
+      color: var(--ink3);
+    }
+
+
+    /* ============================================================
+       TRANSACTION LIST
+       Each row shows: icon badge | type + hash | amount + date
+       ============================================================ */
+    .tx-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tx-row {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 15px 17px;
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      align-items: center;
+      gap: 13px;
+      animation: up 0.35s ease both;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .tx-row:hover {
+      border-color: var(--accent);
+      box-shadow: 0 2px 12px #1a56e810;
+    }
+
+    /* Colored icon badge (square with rounded corners) */
+    .tx-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .tx-badge.in    { background: var(--green-lt); }  /* Incoming payment */
+    .tx-badge.out   { background: var(--red-lt); }    /* Outgoing payment */
+    .tx-badge.other { background: var(--accent-lt); } /* Other operation types */
+
+    /* Transaction type label (e.g. "Payment", "Account Created") */
+    .tx-type {
+      font-weight: 700;
+      font-size: 0.84rem;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    /* Shortened transaction hash with link to Stellar.Expert */
+    .tx-hash {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--ink3);
+      text-decoration: none;
+    }
+
+    .tx-hash:hover {
+      color: var(--accent);
+    }
+
+    /* Right column: amount + date */
+    .tx-right {
+      text-align: right;
+    }
+
+    .tx-amt {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 0.8rem;
+    }
+
+    .tx-amt.in      { color: var(--green); } /* Positive amount */
+    .tx-amt.out     { color: var(--red); }   /* Negative amount */
+    .tx-amt.neutral { color: var(--ink3); }  /* No amount (e.g. non-payment op) */
+
+    .tx-date {
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      color: var(--ink3);
+      margin-top: 3px;
+    }
+
+    /* Shown when a wallet has no operations */
+    .tx-empty {
+      text-align: center;
+      padding: 40px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--ink3);
+    }
+
+
+    /* ============================================================
+       ANIMATIONS
+       ============================================================ */
+
+    /* Blinking dot (used in network pill) */
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* Spinning loader */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Slide-up fade-in (used on cards and tx rows) */
+    @keyframes up {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+
+    /* ============================================================
+       RESPONSIVE — TABLET (≤ 860px)
+       Stack sidebar above content
+       ============================================================ */
+    @media (max-width: 860px) {
+      .page {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        height: auto;
+        position: relative;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* ============================================================
+       RESPONSIVE — MOBILE (≤ 520px)
+       Single column layout
+       ============================================================ */
+    @media (max-width: 520px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .tx-row {
+        grid-template-columns: 36px 1fr;
+      }
+
+      .tx-right {
+        grid-column: 2;
+      }
+
+      .topbar {
+        padding: 12px 16px;
+      }
+
+      .main {
+        padding: 24px 16px 48px;
+      }
+    }
+
+  </style>
+</head>
+
+<body>
+<div class="page">
+
+
+  <!-- ============================================================
+       SIDEBAR
+       Contains: Logo, wallet search, how-it-works, footer links
+       ============================================================ -->
+  <aside class="sidebar">
+
+    <!-- Logo + network status -->
+    <div class="logo-wrap">
+
+      <!-- Custom SVG logo mark (crosshair / orbit design) -->
+      <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="52" height="52" rx="13" fill="#1a56e8"/>
+
+        <!-- Outer orbit ring -->
+        <circle cx="26" cy="26" r="18" stroke="rgba(255,255,255,0.18)" stroke-width="1" fill="none"/>
+
+        <!-- Middle orbit ring -->
+        <circle cx="26" cy="26" r="11" stroke="rgba(255,255,255,0.35)" stroke-width="1" fill="none"/>
+
+        <!-- Inner ring (tightest, highest opacity) -->
+        <circle cx="26" cy="26" r="5" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" fill="none"/>
+
+        <!-- Center dot -->
+        <circle cx="26" cy="26" r="2.5" fill="white"/>
+
+        <!-- Cardinal orbit dots (top, right, bottom, left) -->
+        <circle cx="26" cy="8"  r="2.2" fill="white"/>
+        <circle cx="44" cy="26" r="1.6" fill="rgba(255,255,255,0.65)"/>
+        <circle cx="26" cy="44" r="1.2" fill="rgba(255,255,255,0.4)"/>
+        <circle cx="8"  cy="26" r="1.6" fill="rgba(255,255,255,0.65)"/>
+
+        <!-- Crosshair guide lines -->
+        <line x1="26" y1="2"  x2="26" y2="50" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        <line x1="2"  y1="26" x2="50" y2="26" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+      </svg>
+
+      <div>
+        <!-- "Stell" is styled in muted yellow; "Aura" stays white -->
+        <div class="logo-name">
+          <span style="color: #e8c84a;">Stell</span>Aura
+        </div>
+        <div class="logo-tagline">Stellar Wallet Explorer · dApp</div>
+      </div>
+
+      <!-- Live network indicator -->
+      <div class="net-pill">
+        <div class="net-dot"></div>
+        TESTNET LIVE
+      </div>
+
+    </div><!-- /.logo-wrap -->
+
+
+    <!-- Wallet address search -->
+    <div>
+      <div class="sb-label">Wallet Address</div>
+
+      <textarea
+        id="walletInput"
+        class="wallet-input"
+        rows="3"
+        placeholder="Enter a Stellar public key&#10;(starts with G, 56 characters)"
+        spellcheck="false"
+      ></textarea>
+
+      <!-- Clicking this triggers lookupWallet() -->
+      <button class="lookup-btn" id="lookupBtn" onclick="lookupWallet()">
+        <!-- Search magnifier icon -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        Explore Wallet
+      </button>
+
+      <!-- Error message shown here if validation or API fails -->
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+
+    <!-- How it works (educational steps) -->
+    <div class="how-section">
+      <div class="sb-label">How it works</div>
+
+      <div class="how-steps">
+
+        <div class="how-step">
+          <div class="step-num">1</div>
+          <div class="step-text">
+            <strong>Enter a wallet address.</strong>
+            A Stellar public key is a unique 56-character ID that identifies
+            an account on the Stellar blockchain.
+          </div>
+        </div>
+
+        <div class="how-step">
+          <div class="step-num">2</div>
+          <div class="step-text">
+            <strong>We call the Horizon API.</strong>
+            Horizon is Stellar's official HTTP API — it lets apps read
+            data from the Stellar network without needing a full node.
+          </div>
+        </div>
+
+        <div class="how-step">
+          <div class="step-num">3</div>
+          <div class="step-text">
+            <strong>Data comes from the ledger.</strong>
+            Stellar's blockchain is a distributed ledger replicated across
+            thousands of nodes. Every balance and transaction is stored
+            there permanently.
+          </div>
+        </div>
+
+        <div class="how-step">
+          <div class="step-num">4</div>
+          <div class="step-text">
+            <strong>Your dashboard appears.</strong>
+            StellAura renders the data in real time — balance, stats, and
+            full transaction history. Completely read-only. No private
+            keys involved.
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /.how-section -->
+
+
+    <!-- Footer links -->
+    <div class="sb-footer">
+      API: <a href="https://horizon-testnet.stellar.org" target="_blank">Stellar Horizon Testnet</a><br/>
+      Explorer: <a href="https://stellar.expert/explorer/testnet" target="_blank">stellar.expert</a><br/>
+      <br/>
+      © 2026 StellAura — Stellar UniTour PH
+    </div>
+
+  </aside><!-- /.sidebar -->
+
+
+  <!-- ============================================================
+       CONTENT AREA (right panel)
+       Contains: sticky topbar + main scrollable dashboard
+       ============================================================ -->
+  <div class="content">
+
+    <!-- Topbar -->
+    <div class="topbar">
+
+      <!-- Title (changes to "Wallet Overview" once data loads) -->
+      <div class="topbar-left" id="topbarTitle">Dashboard</div>
+
+      <!-- Address + copy button — hidden until a wallet loads -->
+      <div class="topbar-right hidden" id="topbarRight">
+        <div class="addr-chip" id="addrChip"></div>
+        <button class="copy-btn" id="copyBtn" onclick="copyAddr()">
+          <!-- Copy icon -->
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          Copy Address
+        </button>
+      </div>
+
+    </div><!-- /.topbar -->
+
+
+    <!-- Main scrollable area -->
+    <div class="main">
+
+
+      <!-- ── STATE: PLACEHOLDER ──────────────────────────────────
+           Shown when no wallet has been entered yet.
+           ──────────────────────────────────────────────────────── -->
+      <div class="state-box" id="statePlaceholder">
+
+        <!-- Faded logo for visual interest -->
+        <svg width="72" height="72" viewBox="0 0 52 52" fill="none"
+             xmlns="http://www.w3.org/2000/svg" style="opacity: 0.12;">
+          <rect width="52" height="52" rx="13" fill="#141210"/>
+          <circle cx="26" cy="26" r="18" stroke="#141210" stroke-width="1" fill="none"/>
+          <circle cx="26" cy="26" r="11" stroke="#141210" stroke-width="1" fill="none"/>
+          <circle cx="26" cy="26" r="5"  stroke="#141210" stroke-width="1.2" fill="none"/>
+          <circle cx="26" cy="26" r="2.5" fill="#141210"/>
+          <circle cx="26" cy="8"  r="2.2" fill="#141210"/>
+          <circle cx="44" cy="26" r="1.6" fill="#141210"/>
+          <circle cx="26" cy="44" r="1.2" fill="#141210"/>
+          <circle cx="8"  cy="26" r="1.6" fill="#141210"/>
+          <line x1="26" y1="2"  x2="26" y2="50" stroke="#141210" stroke-width="1"/>
+          <line x1="2"  y1="26" x2="50" y2="26" stroke="#141210" stroke-width="1"/>
+        </svg>
+
+        <h3>No wallet loaded yet</h3>
+        <p>Enter any Stellar testnet public key on the left to explore its balance and transaction history.</p>
+
+        <div class="hint-label">Try a sample address</div>
+
+        <!-- Clicking this fills the input and auto-searches -->
+        <button class="sample-btn" onclick="useSample()">
+          GAAZI4T…OCCWN — click to load
+        </button>
+
+      </div><!-- /#statePlaceholder -->
+
+
+      <!-- ── STATE: LOADING ──────────────────────────────────────
+           Shown while waiting for the Horizon API to respond.
+           ──────────────────────────────────────────────────────── -->
+      <div class="state-box hidden" id="stateLoading">
+        <div class="spinner"></div>
+        <div class="load-text">Querying Stellar Testnet…</div>
+      </div>
+
+
+      <!-- ── STATE: DASHBOARD ────────────────────────────────────
+           Shown after a wallet is successfully loaded.
+           Hidden by default; toggled via setState('dashboard').
+           ──────────────────────────────────────────────────────── -->
+      <div id="dashboard">
+
+        <!-- Stat cards -->
+        <div class="stats-grid">
+
+          <!-- Card 1: XLM Balance -->
+          <div class="stat-card c-blue" style="animation-delay: 0s;">
+            <div class="stat-icon-wrap">
+              <!-- XLM icon: circle with an X inside -->
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="#1a56e8" stroke-width="1.5"/>
+                <line x1="8"  y1="8"  x2="16" y2="16" stroke="#1a56e8" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="16" y1="8"  x2="8"  y2="16" stroke="#1a56e8" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="12" cy="12" r="1.5" fill="#1a56e8"/>
+              </svg>
+            </div>
+            <div class="stat-lbl">XLM Balance</div>
+            <div class="stat-val" id="statBalance">—</div>
+            <div class="stat-hint">Native Stellar asset</div>
+          </div>
+
+          <!-- Card 2: Recent Operations count -->
+          <div class="stat-card c-green" style="animation-delay: 0.07s;">
+            <div class="stat-icon-wrap">
+              <!-- Grid icon: four squares -->
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="3"  y="3"  width="7" height="7" rx="1.5" stroke="#0d7a55" stroke-width="1.5"/>
+                <rect x="14" y="3"  width="7" height="7" rx="1.5" stroke="#0d7a55" stroke-width="1.5"/>
+                <rect x="3"  y="14" width="7" height="7" rx="1.5" stroke="#0d7a55" stroke-width="1.5"/>
+                <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#0d7a55" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="stat-lbl">Recent Operations</div>
+            <div class="stat-val" id="statOps">—</div>
+            <div class="stat-hint">Last 20 fetched</div>
+          </div>
+
+          <!-- Card 3: Subentry count (trustlines, offers, etc.) -->
+          <div class="stat-card c-gold" style="animation-delay: 0.14s;">
+            <div class="stat-icon-wrap">
+              <!-- Layers / stack icon -->
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"   stroke="#a07820" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M2 12l10 5 10-5"               stroke="#a07820" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M2 17l10 5 10-5"               stroke="#a07820" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="stat-lbl">Subentries</div>
+            <div class="stat-val" id="statSub">—</div>
+            <div class="stat-hint">Trustlines &amp; offers</div>
+          </div>
+
+        </div><!-- /.stats-grid -->
+
+
+        <!-- Transaction list section header -->
+        <div class="sec-head">
+          <h2>Transaction History</h2>
+          <div class="sec-line"></div>
+          <div class="sec-count" id="txCount">0 ops</div>
+        </div>
+
+        <!-- Transaction rows are injected here by renderTransactions() -->
+        <div class="tx-list" id="txList"></div>
+
+      </div><!-- /#dashboard -->
+
+
+    </div><!-- /.main -->
+  </div><!-- /.content -->
+
+</div><!-- /.page -->
+
+
+<!-- ============================================================
+     JAVASCRIPT
+     All logic is split into clearly named functions below.
+     ============================================================ -->
+<script>
+
+  /* ────────────────────────────────────────────────────────────
+     CONFIG
+     Change HORIZON to use mainnet: https://horizon.stellar.org
+  ──────────────────────────────────────────────────────────── */
+  const HORIZON_URL = 'https://horizon-testnet.stellar.org';
+  const SAMPLE_ADDRESS = 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN';
+
+  // Stores the currently loaded wallet address
+  let currentAddress = '';
+
+
+  /* ────────────────────────────────────────────────────────────
+     setState(state)
+     Controls which panel is visible in the main area.
+     Params: state = 'placeholder' | 'loading' | 'dashboard'
+  ──────────────────────────────────────────────────────────── */
+  function setState(state) {
+    // Hide all states first
+    document.getElementById('statePlaceholder').classList.add('hidden');
+    document.getElementById('stateLoading').classList.add('hidden');
+    document.getElementById('dashboard').style.display = 'none';
+
+    // Show the requested state
+    if (state === 'placeholder') {
+      document.getElementById('statePlaceholder').classList.remove('hidden');
+    }
+    if (state === 'loading') {
+      document.getElementById('stateLoading').classList.remove('hidden');
+    }
+    if (state === 'dashboard') {
+      document.getElementById('dashboard').style.display = 'block';
+    }
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     showError(message)
+     Displays an error below the lookup button in the sidebar.
+  ──────────────────────────────────────────────────────────── */
+  function showError(message) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     clearError()
+     Hides the error message box.
+  ──────────────────────────────────────────────────────────── */
+  function clearError() {
+    const el = document.getElementById('errorMsg');
+    el.style.display = 'none';
+    el.textContent = '';
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     lookupWallet()
+     Main function triggered when the user clicks "Explore Wallet"
+     or presses Enter in the textarea.
+
+     Flow:
+       1. Read + validate the address
+       2. Show loading state
+       3. Fetch account + operations from Horizon in parallel
+       4. On success → call render() and show dashboard
+       5. On error → show error message and restore placeholder
+  ──────────────────────────────────────────────────────────── */
+  async function lookupWallet() {
+    // Strip whitespace from pasted address
+    const address = document.getElementById('walletInput').value.trim().replace(/\s+/g, '');
+    const btn = document.getElementById('lookupBtn');
+
+    clearError();
+
+    // Validation: check if field is empty
+    if (!address) {
+      showError('Please enter a Stellar wallet address.');
+      return;
+    }
+
+    // Validation: Stellar public keys start with G and are exactly 56 characters
+    const isValidStellarAddress = /^G[A-Z2-7]{55}$/.test(address);
+    if (!isValidStellarAddress) {
+      showError('Invalid address. A Stellar public key starts with G and is exactly 56 characters.');
+      return;
+    }
+
+    // Disable button and show loading
+    btn.disabled = true;
+    btn.textContent = 'Scanning…';
+    setState('loading');
+
+    try {
+      // Fetch both endpoints at the same time (faster than sequential)
+      const [accountResponse, operationsResponse] = await Promise.all([
+        fetch(`${HORIZON_URL}/accounts/${address}`),
+        fetch(`${HORIZON_URL}/accounts/${address}/operations?limit=20&order=desc`)
+      ]);
+
+      // Handle account not found (404) or other HTTP errors
+      if (!accountResponse.ok) {
+        if (accountResponse.status === 404) {
+          throw new Error('Account not found on the testnet. It may not be funded yet.');
+        }
+        throw new Error(`Horizon returned error ${accountResponse.status}.`);
+      }
+
+      // Parse the JSON responses
+      const accountData = await accountResponse.json();
+      const operationsData = operationsResponse.ok
+        ? (await operationsResponse.json())._embedded.records
+        : [];
+
+      // Save current address for use in render functions
+      currentAddress = address;
+
+      // Render the dashboard with the fetched data
+      renderStats(accountData, operationsData);
+      renderTransactions(operationsData);
+
+      // Switch to dashboard view
+      setState('dashboard');
+
+      // Update the topbar with a shortened address
+      document.getElementById('topbarTitle').textContent = 'Wallet Overview';
+      document.getElementById('addrChip').textContent = address.slice(0, 8) + '…' + address.slice(-6);
+      document.getElementById('topbarRight').classList.remove('hidden');
+
+    } catch (error) {
+      // Show the error message and go back to placeholder
+      showError(error.message || 'Something went wrong. Please try again.');
+      setState('placeholder');
+
+    } finally {
+      // Always re-enable the button when done (success or fail)
+      btn.disabled = false;
+      btn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        Explore Wallet
+      `;
+    }
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     renderStats(accountData, operationsData)
+     Populates the three stat cards with account data.
+     Params:
+       accountData    — JSON from /accounts/{address}
+       operationsData — Array of operation records
+  ──────────────────────────────────────────────────────────── */
+  function renderStats(accountData, operationsData) {
+    // Find the native XLM balance from the balances array
+    const nativeBalance = accountData.balances.find(b => b.asset_type === 'native');
+
+    const xlmAmount = nativeBalance
+      ? parseFloat(nativeBalance.balance).toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 4
+        })
+      : '0.00';
+
+    document.getElementById('statBalance').textContent = xlmAmount;
+    document.getElementById('statOps').textContent = operationsData.length;
+    document.getElementById('statSub').textContent  = accountData.subentry_count ?? 0;
+    document.getElementById('txCount').textContent  = operationsData.length + ' ops';
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     renderTransactions(operations)
+     Builds and injects transaction row elements into the list.
+     Params:
+       operations — Array of operation records from Horizon
+  ──────────────────────────────────────────────────────────── */
+  function renderTransactions(operations) {
+    const listEl = document.getElementById('txList');
+    listEl.innerHTML = ''; // Clear previous rows
+
+    // Show a message if there are no operations
+    if (!operations.length) {
+      listEl.innerHTML = '<div class="tx-empty">No operations found for this account.</div>';
+      return;
+    }
+
+    // Build one row per operation
+    operations.forEach((op, index) => {
+
+      // Determine transaction direction
+      const isIncoming = op.type === 'payment' && op.to === currentAddress;
+      const isOutgoing = op.type === 'payment' && op.from === currentAddress;
+      const isCreation = op.type === 'create_account';
+
+      // Badge color class based on direction
+      const badgeClass = (isIncoming || isCreation) ? 'in'
+                       : isOutgoing                 ? 'out'
+                                                    : 'other';
+
+      // Build the amount HTML (only payments and account creation have amounts)
+      let amountHTML = '<div class="tx-amt neutral">—</div>';
+
+      if (op.type === 'payment') {
+        const assetCode = op.asset_type === 'native' ? 'XLM' : op.asset_code;
+        const sign = isIncoming ? '+' : '−';
+        const amountClass = isIncoming ? 'in' : 'out';
+        amountHTML = `<div class="tx-amt ${amountClass}">${sign}${parseFloat(op.amount).toFixed(4)} ${assetCode}</div>`;
+      } else if (isCreation) {
+        amountHTML = `<div class="tx-amt in">+${parseFloat(op.starting_balance).toFixed(4)} XLM</div>`;
+      }
+
+      // Format the operation date
+      const formattedDate = new Date(op.created_at).toLocaleDateString('en-PH', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      });
+
+      // Shorten the transaction hash for display
+      const txHash = op.transaction_hash || '';
+      const shortHash = txHash ? txHash.slice(0, 10) + '…' + txHash.slice(-8) : '—';
+      const explorerURL = `https://stellar.expert/explorer/testnet/tx/${txHash}`;
+
+      // Create the row element
+      const row = document.createElement('div');
+      row.className = 'tx-row';
+      row.style.animationDelay = `${index * 0.04}s`; // Staggered entrance
+
+      row.innerHTML = `
+        <div class="tx-badge ${badgeClass}">
+          ${getTransactionIcon(op.type, badgeClass)}
+        </div>
+        <div>
+          <div class="tx-type">${getOperationLabel(op.type)}</div>
+          <a class="tx-hash" href="${explorerURL}" target="_blank">${shortHash}</a>
+        </div>
+        <div class="tx-right">
+          ${amountHTML}
+          <div class="tx-date">${formattedDate}</div>
+        </div>
+      `;
+
+      listEl.appendChild(row);
+    });
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     getTransactionIcon(type, badgeClass)
+     Returns an inline SVG arrow/icon for the transaction badge.
+     Params:
+       type       — Stellar operation type string
+       badgeClass — 'in' | 'out' | 'other'
+     Returns: SVG string
+  ──────────────────────────────────────────────────────────── */
+  function getTransactionIcon(type, badgeClass) {
+    // Pick stroke color based on badge type
+    const color = badgeClass === 'in'  ? '#0d7a55'
+                : badgeClass === 'out' ? '#c0392b'
+                                       : '#1a56e8';
+
+    // Arrow pointing up-left = incoming payment
+    if (type === 'payment' && badgeClass === 'in') {
+      return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+                   stroke="${color}" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"/>
+                <polyline points="5 12 12 5 19 12"/>
+              </svg>`;
+    }
+
+    // Arrow pointing down-right = outgoing payment
+    if (type === 'payment' && badgeClass === 'out') {
+      return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+                   stroke="${color}" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <polyline points="19 12 12 19 5 12"/>
+              </svg>`;
+    }
+
+    // Plus inside a circle = account creation
+    if (type === 'create_account') {
+      return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+                   stroke="${color}" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+              </svg>`;
+    }
+
+    // Default: two arrows forming a loop = generic operation
+    return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+                 stroke="${color}" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="17 1 21 5 17 9"/>
+              <path d="M3 11V9a4 4 0 014-4h14"/>
+              <polyline points="7 23 3 19 7 15"/>
+              <path d="M21 13v2a4 4 0 01-4 4H3"/>
+            </svg>`;
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     getOperationLabel(type)
+     Converts a Stellar operation type key into a readable label.
+     Params:
+       type — Stellar operation type string (e.g. 'create_account')
+     Returns: Human-readable label string
+  ──────────────────────────────────────────────────────────── */
+  function getOperationLabel(type) {
+    const labels = {
+      payment:                          'Payment',
+      create_account:                   'Account Created',
+      change_trust:                     'Change Trust',
+      manage_sell_offer:                'Manage Sell Offer',
+      manage_buy_offer:                 'Manage Buy Offer',
+      set_options:                      'Set Options',
+      account_merge:                    'Account Merge',
+      path_payment_strict_receive:      'Path Payment',
+      path_payment_strict_send:         'Path Payment (Send)',
+      create_claimable_balance:         'Claimable Balance',
+      claim_claimable_balance:          'Claim Balance',
+      liquidity_pool_deposit:           'LP Deposit',
+      liquidity_pool_withdraw:          'LP Withdraw',
+    };
+
+    // Return mapped label, or convert snake_case to Title Case as fallback
+    return labels[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     useSample()
+     Fills the wallet input with a sample address and auto-searches.
+     Triggered by the "Try a sample address" button.
+  ──────────────────────────────────────────────────────────── */
+  function useSample() {
+    document.getElementById('walletInput').value = SAMPLE_ADDRESS;
+    lookupWallet();
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     copyAddr()
+     Copies the full current wallet address to the clipboard.
+     Triggered by the "Copy Address" button in the topbar.
+  ──────────────────────────────────────────────────────────── */
+  function copyAddr() {
+    if (!currentAddress) return;
+
+    navigator.clipboard.writeText(currentAddress).then(() => {
+      const btn = document.getElementById('copyBtn');
+
+      // Show "Copied!" confirmation
+      btn.innerHTML = `
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Copied!
+      `;
+
+      // Restore original button text after 2 seconds
+      setTimeout(() => {
+        btn.innerHTML = `
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          Copy Address
+        `;
+      }, 2000);
+    });
+  }
+
+
+  /* ────────────────────────────────────────────────────────────
+     KEYBOARD SUPPORT
+     Pressing Enter in the textarea triggers lookupWallet().
+     Shift+Enter inserts a newline (normal textarea behavior).
+  ──────────────────────────────────────────────────────────── */
+  document.getElementById('walletInput').addEventListener('keydown', function(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault(); // Prevent newline in textarea
+      lookupWallet();
+    }
+  });
+
+</script>
+</body>
+</html>
