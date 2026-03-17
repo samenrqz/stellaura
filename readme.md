@@ -14,8 +14,7 @@ It was built as a submission for the **Stellar Philippines UniTour Hackathon 202
 
 ## Live Demo
 
-> Replace this with your GitHub Pages URL after deployment  
-> Example: `https://your-username.github.io/stellarscope`
+> https://samenrqz.github.io/stellaura
 
 ---
 
@@ -34,14 +33,14 @@ It was built as a submission for the **Stellar Philippines UniTour Hackathon 202
 
 ## How the System Works
 
-This section explains what actually happens when you use StellAura — step by step.
+This section explains what actually happens when you use StellAura, step by step.
 
 ### 1. What is a Stellar Wallet Address?
 
 A Stellar wallet address (also called a **public key**) is a unique 56-character identifier that looks like this:
 
 ```
-GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN
+GCEASWE5FNQRC2EKZAIKVOGM74NMU4RHYMNFZXTCBAHE5HAZA3JLUL3Q
 ```
 
 It always starts with the letter `G`. This is your account's public identity on the Stellar blockchain. It is safe to share — anyone can look it up, but no one can move your funds without the matching **private key** (which StellAura never touches or asks for).
@@ -137,7 +136,7 @@ StellAura qualifies as a dApp because:
 | HTML / CSS / JavaScript | Frontend (no frameworks needed) |
 | Stellar Horizon REST API | Blockchain data source |
 | Stellar Testnet | The blockchain network |
-| GitHub Pages | Static hosting |
+| GitHub Pages | Static hosting (deployed on testnet) |
 | Google Fonts (Syne + DM Mono + Cabinet Grotesk) | Typography |
 | Custom inline SVG | All icons and the logo |
 
@@ -155,8 +154,8 @@ StellAura qualifies as a dApp because:
 **1. Clone the repository**
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/stellarscope.git
-cd stellarscope
+git clone https://github.com/samenrqz/stellaura.git
+cd stellaura
 ```
 
 **2. Open the app**
@@ -164,13 +163,13 @@ cd stellarscope
 Simply open `index.html` in your browser:
 
 ```bash
-# On macOS
-open index.html
-
 # On Windows (PowerShell)
 start index.html
 
-# Or just double-click the file
+# On macOS
+open index.html
+
+# Or just double-click the file in File Explorer
 ```
 
 That is it. The app is a single HTML file with no dependencies to install.
@@ -187,24 +186,51 @@ Since the Stellar Testnet is a live public network, running the app on GitHub Pa
 2. Go to your repository → **Settings** → **Pages**
 3. Under "Source", select **main branch** and **/ (root)**
 4. Click **Save**
-5. GitHub will give you a URL like: `https://your-username.github.io/stellarscope`
+5. GitHub will give you a live URL like: `https://samenrqz.github.io/stellaura`
 
 Your dApp is now live and accessible to anyone.
 
 ---
 
+## Usage
+
+**1. Open the app** by visiting the live demo link or opening `index.html` locally.
+
+**2. Enter a wallet address** — paste any Stellar testnet public key into the input box on the left sidebar, then click **Explore Wallet** or press Enter.
+
+**3. Try the sample wallet** — click the **"GCEASW…UL3Q — click to load"** button to instantly load a pre-funded testnet wallet and see the dashboard in action.
+
+**4. Read the dashboard:**
+- The top three cards show XLM balance, total operations, and subentry count
+- The transaction list below shows the 20 most recent operations with type, amount, and date
+- Click any transaction hash to view it on Stellar.Expert
+
+**5. Copy the address** — use the Copy Address button in the top bar to copy the full wallet address to your clipboard.
+
+---
+
 ## Testing the App
 
-Use any of these funded testnet addresses to explore real blockchain data:
+Use these funded testnet addresses to explore real blockchain data:
 
+### Sample 1 — Basic XLM wallet
+A freshly funded testnet account with XLM balance.
 ```
-GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN
+GCEASWE5FNQRC2EKZAIKVOGM74NMU4RHYMNFZXTCBAHE5HAZA3JLUL3Q
 ```
+
+### Sample 2 — Wallet with trustline history
+An account with XLM balance and trustline/transaction history.
+```
+GBT64UUZJXQUBHFUHHPNAQU7Z5RU3MTF3B33TQUF4A3KRCGQNKUS7AT7
+```
+
+> These are **public keys only** — safe to share. Never share a secret key (starts with S).
 
 To create your own testnet wallet:
-1. Go to [Stellar Laboratory](https://laboratory.stellar.org/)
+1. Go to [Stellar Lab](https://lab.stellar.org/account/fund)
 2. Click **Generate Keypair** to create a new address
-3. Click **Fund Account with Friendbot** to add testnet XLM
+3. Click **Fund Account with Friendbot** to add free testnet XLM
 4. Paste your new public key into StellAura
 
 ---
@@ -212,21 +238,21 @@ To create your own testnet wallet:
 ## Project Structure
 
 ```
-stellarscope/
+stellaura/
 ├── index.html      ← The complete dApp (single file)
 └── README.md       ← This file
 ```
 
-The entire application is contained in one HTML file. This was intentional — it keeps deployment simple (just one file to host) and makes the code easy to read and audit.
+The entire application is contained in one HTML file. This was intentional — it keeps deployment simple and makes the code easy to read and audit.
 
 ---
 
 ## Submission Checklist
 
-- [x] Unique dApp — a Stellar wallet explorer with custom design, SVG icons, and a split-panel layout not found in any existing Stellar template
-- [x] GitHub repository with README (this file)
-- [x] README written in English
-- [x] App communicates with the Stellar Testnet (`horizon-testnet.stellar.org`)
+- [x] **Unique dApp** — a Stellar wallet explorer with a custom split-panel layout, original SVG logo, and clean design not found in any existing Stellar template
+- [x] **GitHub repository** with README file covering setup, usage, and explanation
+- [x] **README written in English**
+- [x] **Deployed on the Stellar Testnet** — app communicates directly with `horizon-testnet.stellar.org`
 
 ---
 
@@ -238,5 +264,5 @@ MIT License — free to use, study, modify, and distribute.
 
 ## Author
 
-Built by a CS student at the **University of the East — Caloocan Campus**  
+Built by a CS student at the **University of the East — Caloocan Campus**
 Submitted for the **Stellar Philippines UniTour Hackathon 2026**

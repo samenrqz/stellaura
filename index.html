@@ -99,6 +99,66 @@
     }
 
     /* Utility: hide an element */
+    /* ============================================================
+       CUSTOM SCROLLBARS
+       Thin, pill-shaped scrollbars consistent with the app's
+       warm off-white + dark sidebar + blue accent color palette.
+       ============================================================ */
+
+    /* Firefox */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #d9d4cb #f5f3ef;
+    }
+
+    /* Global page scrollbar */
+    html::-webkit-scrollbar {
+      width: 8px;
+    }
+    html::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    html::-webkit-scrollbar-thumb {
+      background: var(--line);
+      border-radius: 999px;
+      border: 2px solid var(--bg);
+    }
+    html::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    /* Main content area scrollbar (light themed) */
+    .main::-webkit-scrollbar {
+      width: 6px;
+    }
+    .main::-webkit-scrollbar-track {
+      background: var(--bg2);
+      border-radius: 999px;
+    }
+    .main::-webkit-scrollbar-thumb {
+      background: var(--line);
+      border-radius: 999px;
+    }
+    .main::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    /* Sidebar scrollbar (dark themed) */
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .sidebar::-webkit-scrollbar-track {
+      background: #1a1814;
+      border-radius: 999px;
+    }
+    .sidebar::-webkit-scrollbar-thumb {
+      background: #3a3630;
+      border-radius: 999px;
+    }
+    .sidebar::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
     .hidden {
       display: none !important;
     }
