@@ -14,7 +14,7 @@ It was built as a submission for the **Stellar Philippines UniTour Hackathon 202
 
 ## Live Demo
 
-> https://samenrqz.github.io/stellaura
+> https://samenrqz.github.io/stellaura](https://github.com/samenrqz/stellaura
 
 ---
 
