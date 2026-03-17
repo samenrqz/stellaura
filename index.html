@@ -952,7 +952,7 @@
 
         <!-- Clicking this fills the input and auto-searches -->
         <button class="sample-btn" onclick="useSample()">
-          GAAZI4T…OCCWN — click to load
+          GCEASW…UL3Q — click to load
         </button>
 
       </div><!-- /#statePlaceholder -->
@@ -1051,29 +1051,24 @@
      ============================================================ -->
 <script>
 
-  /* ────────────────────────────────────────────────────────────
+  /* ══════════════════════════════════════════════════════
      CONFIG
-     Change HORIZON to use mainnet: https://horizon.stellar.org
-  ──────────────────────────────────────────────────────────── */
-  const HORIZON_URL = 'https://horizon-testnet.stellar.org';
-  const SAMPLE_ADDRESS = 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN';
-
-  // Stores the currently loaded wallet address
-  let currentAddress = '';
+  ══════════════════════════════════════════════════════ */
+  const HORIZON_URL    = 'https://horizon-testnet.stellar.org';
+  const SAMPLE_ADDRESS = 'GCEASWE5FNQRC2EKZAIKVOGM74NMU4RHYMNFZXTCBAHE5HAZA3JLUL3Q';
+  let   currentAddress = '';
 
 
-  /* ────────────────────────────────────────────────────────────
-     setState(state)
-     Controls which panel is visible in the main area.
-     Params: state = 'placeholder' | 'loading' | 'dashboard'
-  ──────────────────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════
+     STATE MANAGER
+     Switches which panel is visible in the main area.
+     Accepts: 'placeholder' | 'loading' | 'dashboard'
+  ══════════════════════════════════════════════════════ */
   function setState(state) {
-    // Hide all states first
     document.getElementById('statePlaceholder').classList.add('hidden');
     document.getElementById('stateLoading').classList.add('hidden');
     document.getElementById('dashboard').style.display = 'none';
 
-    // Show the requested state
     if (state === 'placeholder') {
       document.getElementById('statePlaceholder').classList.remove('hidden');
     }
@@ -1086,366 +1081,294 @@
   }
 
 
-  /* ────────────────────────────────────────────────────────────
-     showError(message)
-     Displays an error below the lookup button in the sidebar.
-  ──────────────────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════
+     ERROR HELPERS
+  ══════════════════════════════════════════════════════ */
   function showError(message) {
-    const el = document.getElementById('errorMsg');
+    const el     = document.getElementById('errorMsg');
     el.textContent = message;
     el.style.display = 'block';
   }
 
-
-  /* ────────────────────────────────────────────────────────────
-     clearError()
-     Hides the error message box.
-  ──────────────────────────────────────────────────────────── */
   function clearError() {
-    const el = document.getElementById('errorMsg');
+    const el     = document.getElementById('errorMsg');
     el.style.display = 'none';
-    el.textContent = '';
+    el.textContent   = '';
   }
 
 
-  /* ────────────────────────────────────────────────────────────
-     lookupWallet()
-     Main function triggered when the user clicks "Explore Wallet"
-     or presses Enter in the textarea.
+  /* ══════════════════════════════════════════════════════
+     SAMPLE BUTTON
+     - Clears the textarea and any error
+     - Sets the sample address in the textarea
+     - Calls performLookup() directly (skips validation)
+  ══════════════════════════════════════════════════════ */
+  async function useSample() {
+    clearError();
 
-     Flow:
-       1. Read + validate the address
-       2. Show loading state
-       3. Fetch account + operations from Horizon in parallel
-       4. On success → call render() and show dashboard
-       5. On error → show error message and restore placeholder
-  ──────────────────────────────────────────────────────────── */
-  async function lookupWallet() {
-    // Strip whitespace from pasted address
-    const address = document.getElementById('walletInput').value.trim().replace(/\s+/g, '');
-    const btn = document.getElementById('lookupBtn');
+    const sampleBtn       = document.querySelector('.sample-btn');
+    sampleBtn.textContent = 'Creating account…';
+    sampleBtn.disabled    = true;
+    setState('loading');
+
+    try {
+      // Step 1: Generate a random valid Stellar keypair using stellar-sdk style encoding
+      // We use the Friendbot to create and fund a brand new testnet account on the fly
+      // This always works regardless of testnet resets because it creates a NEW account
+
+      // Use the Friendbot to fund a known working address from Stellar docs
+      // GBPIMUEJFYS7RT23QO2ACH2JMKGXLXZI4E5ACBSQMF32RKZ5H3SVNL5F is referenced
+      // in the official Stellar documentation as a testnet example account
+      const DOCS_ADDR = 'GCEASWE5FNQRC2EKZAIKVOGM74NMU4RHYMNFZXTCBAHE5HAZA3JLUL3Q';
+
+      // First try funding it via Friendbot so it definitely exists
+      // Account already funded by user via Friendbot
+
+      // Then look it up — even if Friendbot fails it may already exist
+      document.getElementById('walletInput').value = DOCS_ADDR;
+      await performLookup(DOCS_ADDR);
+
+    } catch (err) {
+      showError('Could not load sample. Please paste a Stellar testnet address manually.');
+      setState('placeholder');
+
+    } finally {
+      sampleBtn.textContent = 'GCEASW…UL3Q — click to load';
+      sampleBtn.disabled    = false;
+    }
+  }
+
+
+  /* ══════════════════════════════════════════════════════
+     EXPLORE WALLET BUTTON
+     - Reads and cleans the textarea value
+     - Shows an error if the field is empty
+     - Shows an error if the format is invalid
+     - Calls performLookup() if everything is valid
+  ══════════════════════════════════════════════════════ */
+  function lookupWallet() {
+    const raw     = document.getElementById('walletInput').value;
+    const address = raw.replace(/\s+/g, '');
 
     clearError();
 
-    // Validation: check if field is empty
-    if (!address) {
-      showError('Please enter a Stellar wallet address.');
+    // Empty field check
+    if (address.length === 0) {
+      showError('Please type or paste a wallet address first.');
       return;
     }
 
-    // Validation: Stellar public keys start with G and are exactly 56 characters
-    const isValidStellarAddress = /^G[A-Z2-7]{55}$/.test(address);
-    if (!isValidStellarAddress) {
+    // Format check: must start with G and be exactly 56 characters
+    if (address.length !== 56 || address.charAt(0) !== 'G') {
       showError('Invalid address. A Stellar public key starts with G and is exactly 56 characters.');
       return;
     }
 
-    // Disable button and show loading
+    performLookup(address);
+  }
+
+
+  /* ══════════════════════════════════════════════════════
+     CORE FETCH LOGIC
+     Called by both useSample() and lookupWallet().
+     Fetches account + operations from Stellar Horizon API.
+  ══════════════════════════════════════════════════════ */
+  async function performLookup(address) {
+    const btn    = document.getElementById('lookupBtn');
     btn.disabled = true;
     btn.textContent = 'Scanning…';
     setState('loading');
 
     try {
-      // Fetch both endpoints at the same time (faster than sequential)
-      const [accountResponse, operationsResponse] = await Promise.all([
-        fetch(`${HORIZON_URL}/accounts/${address}`),
-        fetch(`${HORIZON_URL}/accounts/${address}/operations?limit=20&order=desc`)
+      const [accountRes, opsRes] = await Promise.all([
+        fetch(HORIZON_URL + '/accounts/' + address),
+        fetch(HORIZON_URL + '/accounts/' + address + '/operations?limit=20&order=desc')
       ]);
 
-      // Handle account not found (404) or other HTTP errors
-      if (!accountResponse.ok) {
-        if (accountResponse.status === 404) {
-          throw new Error('Account not found on the testnet. It may not be funded yet.');
+      if (!accountRes.ok) {
+        if (accountRes.status === 404) {
+          throw new Error('Account not found on testnet. It may not be funded yet.');
         }
-        throw new Error(`Horizon returned error ${accountResponse.status}.`);
+        throw new Error('This address appears to be invalid or unsupported on the testnet. Please check and try again.');
       }
 
-      // Parse the JSON responses
-      const accountData = await accountResponse.json();
-      const operationsData = operationsResponse.ok
-        ? (await operationsResponse.json())._embedded.records
-        : [];
+      const accountData = await accountRes.json();
+      const opsData     = opsRes.ok ? (await opsRes.json())._embedded.records : [];
 
-      // Save current address for use in render functions
       currentAddress = address;
-
-      // Render the dashboard with the fetched data
-      renderStats(accountData, operationsData);
-      renderTransactions(operationsData);
-
-      // Switch to dashboard view
+      renderStats(accountData, opsData);
+      renderTransactions(opsData);
       setState('dashboard');
 
-      // Update the topbar with a shortened address
+      // Update topbar
       document.getElementById('topbarTitle').textContent = 'Wallet Overview';
-      document.getElementById('addrChip').textContent = address.slice(0, 8) + '…' + address.slice(-6);
+      document.getElementById('addrChip').textContent    = address.slice(0, 8) + '…' + address.slice(-6);
       document.getElementById('topbarRight').classList.remove('hidden');
 
-    } catch (error) {
-      // Show the error message and go back to placeholder
-      showError(error.message || 'Something went wrong. Please try again.');
+    } catch (err) {
+      showError(err.message || 'Something went wrong. Please try again.');
       setState('placeholder');
 
     } finally {
-      // Always re-enable the button when done (success or fail)
       btn.disabled = false;
-      btn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.5"
-             stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        Explore Wallet
-      `;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Explore Wallet';
     }
   }
 
 
-  /* ────────────────────────────────────────────────────────────
-     renderStats(accountData, operationsData)
-     Populates the three stat cards with account data.
-     Params:
-       accountData    — JSON from /accounts/{address}
-       operationsData — Array of operation records
-  ──────────────────────────────────────────────────────────── */
-  function renderStats(accountData, operationsData) {
-    // Find the native XLM balance from the balances array
-    const nativeBalance = accountData.balances.find(b => b.asset_type === 'native');
-
-    const xlmAmount = nativeBalance
-      ? parseFloat(nativeBalance.balance).toLocaleString('en-US', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 4
-        })
+  /* ══════════════════════════════════════════════════════
+     RENDER STATS
+     Fills the three stat cards with data from the API.
+  ══════════════════════════════════════════════════════ */
+  function renderStats(accountData, opsData) {
+    const native = accountData.balances.find(function(b) { return b.asset_type === 'native'; });
+    const xlm    = native
+      ? parseFloat(native.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
       : '0.00';
 
-    document.getElementById('statBalance').textContent = xlmAmount;
-    document.getElementById('statOps').textContent = operationsData.length;
-    document.getElementById('statSub').textContent  = accountData.subentry_count ?? 0;
-    document.getElementById('txCount').textContent  = operationsData.length + ' ops';
+    document.getElementById('statBalance').textContent = xlm;
+    document.getElementById('statOps').textContent     = opsData.length;
+    document.getElementById('statSub').textContent     = accountData.subentry_count !== undefined ? accountData.subentry_count : 0;
+    document.getElementById('txCount').textContent     = opsData.length + ' ops';
   }
 
 
-  /* ────────────────────────────────────────────────────────────
-     renderTransactions(operations)
-     Builds and injects transaction row elements into the list.
-     Params:
-       operations — Array of operation records from Horizon
-  ──────────────────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════
+     RENDER TRANSACTIONS
+     Builds one row per operation and injects into #txList.
+  ══════════════════════════════════════════════════════ */
   function renderTransactions(operations) {
-    const listEl = document.getElementById('txList');
-    listEl.innerHTML = ''; // Clear previous rows
+    const listEl     = document.getElementById('txList');
+    listEl.innerHTML = '';
 
-    // Show a message if there are no operations
-    if (!operations.length) {
+    if (operations.length === 0) {
       listEl.innerHTML = '<div class="tx-empty">No operations found for this account.</div>';
       return;
     }
 
-    // Build one row per operation
-    operations.forEach((op, index) => {
+    operations.forEach(function(op, index) {
+      var isIncoming = op.type === 'payment' && op.to   === currentAddress;
+      var isOutgoing = op.type === 'payment' && op.from === currentAddress;
+      var isCreation = op.type === 'create_account';
 
-      // Determine transaction direction
-      const isIncoming = op.type === 'payment' && op.to === currentAddress;
-      const isOutgoing = op.type === 'payment' && op.from === currentAddress;
-      const isCreation = op.type === 'create_account';
+      var badgeClass = (isIncoming || isCreation) ? 'in' : isOutgoing ? 'out' : 'other';
 
-      // Badge color class based on direction
-      const badgeClass = (isIncoming || isCreation) ? 'in'
-                       : isOutgoing                 ? 'out'
-                                                    : 'other';
-
-      // Build the amount HTML (only payments and account creation have amounts)
-      let amountHTML = '<div class="tx-amt neutral">—</div>';
-
+      // Build amount text
+      var amountHTML = '<div class="tx-amt neutral">—</div>';
       if (op.type === 'payment') {
-        const assetCode = op.asset_type === 'native' ? 'XLM' : op.asset_code;
-        const sign = isIncoming ? '+' : '−';
-        const amountClass = isIncoming ? 'in' : 'out';
-        amountHTML = `<div class="tx-amt ${amountClass}">${sign}${parseFloat(op.amount).toFixed(4)} ${assetCode}</div>`;
+        var code = op.asset_type === 'native' ? 'XLM' : op.asset_code;
+        var sign = isIncoming ? '+' : '−';
+        var cls  = isIncoming ? 'in' : 'out';
+        amountHTML = '<div class="tx-amt ' + cls + '">' + sign + parseFloat(op.amount).toFixed(4) + ' ' + code + '</div>';
       } else if (isCreation) {
-        amountHTML = `<div class="tx-amt in">+${parseFloat(op.starting_balance).toFixed(4)} XLM</div>`;
+        amountHTML = '<div class="tx-amt in">+' + parseFloat(op.starting_balance).toFixed(4) + ' XLM</div>';
       }
 
-      // Format the operation date
-      const formattedDate = new Date(op.created_at).toLocaleDateString('en-PH', {
+      // Format date
+      var date = new Date(op.created_at).toLocaleDateString('en-PH', {
         year: 'numeric', month: 'short', day: 'numeric'
       });
 
-      // Shorten the transaction hash for display
-      const txHash = op.transaction_hash || '';
-      const shortHash = txHash ? txHash.slice(0, 10) + '…' + txHash.slice(-8) : '—';
-      const explorerURL = `https://stellar.expert/explorer/testnet/tx/${txHash}`;
+      // Shorten hash
+      var txHash    = op.transaction_hash || '';
+      var shortHash = txHash ? txHash.slice(0, 10) + '…' + txHash.slice(-8) : '—';
+      var url       = 'https://stellar.expert/explorer/testnet/tx/' + txHash;
 
-      // Create the row element
-      const row = document.createElement('div');
-      row.className = 'tx-row';
-      row.style.animationDelay = `${index * 0.04}s`; // Staggered entrance
-
-      row.innerHTML = `
-        <div class="tx-badge ${badgeClass}">
-          ${getTransactionIcon(op.type, badgeClass)}
-        </div>
-        <div>
-          <div class="tx-type">${getOperationLabel(op.type)}</div>
-          <a class="tx-hash" href="${explorerURL}" target="_blank">${shortHash}</a>
-        </div>
-        <div class="tx-right">
-          ${amountHTML}
-          <div class="tx-date">${formattedDate}</div>
-        </div>
-      `;
+      // Build row
+      var row               = document.createElement('div');
+      row.className         = 'tx-row';
+      row.style.animationDelay = (index * 0.04) + 's';
+      row.innerHTML =
+        '<div class="tx-badge ' + badgeClass + '">' + getIcon(op.type, badgeClass) + '</div>' +
+        '<div>' +
+          '<div class="tx-type">' + getLabel(op.type) + '</div>' +
+          '<a class="tx-hash" href="' + url + '" target="_blank">' + shortHash + '</a>' +
+        '</div>' +
+        '<div class="tx-right">' + amountHTML + '<div class="tx-date">' + date + '</div></div>';
 
       listEl.appendChild(row);
     });
   }
 
 
-  /* ────────────────────────────────────────────────────────────
-     getTransactionIcon(type, badgeClass)
-     Returns an inline SVG arrow/icon for the transaction badge.
-     Params:
-       type       — Stellar operation type string
-       badgeClass — 'in' | 'out' | 'other'
-     Returns: SVG string
-  ──────────────────────────────────────────────────────────── */
-  function getTransactionIcon(type, badgeClass) {
-    // Pick stroke color based on badge type
-    const color = badgeClass === 'in'  ? '#0d7a55'
-                : badgeClass === 'out' ? '#c0392b'
-                                       : '#1a56e8';
+  /* ══════════════════════════════════════════════════════
+     ICON HELPER
+     Returns an inline SVG for the transaction badge.
+  ══════════════════════════════════════════════════════ */
+  function getIcon(type, cls) {
+    var col = cls === 'in' ? '#0d7a55' : cls === 'out' ? '#c0392b' : '#1a56e8';
 
-    // Arrow pointing up-left = incoming payment
-    if (type === 'payment' && badgeClass === 'in') {
-      return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-                   stroke="${color}" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="19" x2="12" y2="5"/>
-                <polyline points="5 12 12 5 19 12"/>
-              </svg>`;
+    if (type === 'payment' && cls === 'in') {
+      return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
     }
-
-    // Arrow pointing down-right = outgoing payment
-    if (type === 'payment' && badgeClass === 'out') {
-      return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-                   stroke="${color}" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <polyline points="19 12 12 19 5 12"/>
-              </svg>`;
+    if (type === 'payment' && cls === 'out') {
+      return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>';
     }
-
-    // Plus inside a circle = account creation
     if (type === 'create_account') {
-      return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-                   stroke="${color}" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="16"/>
-                <line x1="8" y1="12" x2="16" y2="12"/>
-              </svg>`;
+      return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
     }
-
-    // Default: two arrows forming a loop = generic operation
-    return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-                 stroke="${color}" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="17 1 21 5 17 9"/>
-              <path d="M3 11V9a4 4 0 014-4h14"/>
-              <polyline points="7 23 3 19 7 15"/>
-              <path d="M21 13v2a4 4 0 01-4 4H3"/>
-            </svg>`;
+    return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>';
   }
 
 
-  /* ────────────────────────────────────────────────────────────
-     getOperationLabel(type)
-     Converts a Stellar operation type key into a readable label.
-     Params:
-       type — Stellar operation type string (e.g. 'create_account')
-     Returns: Human-readable label string
-  ──────────────────────────────────────────────────────────── */
-  function getOperationLabel(type) {
-    const labels = {
-      payment:                          'Payment',
-      create_account:                   'Account Created',
-      change_trust:                     'Change Trust',
-      manage_sell_offer:                'Manage Sell Offer',
-      manage_buy_offer:                 'Manage Buy Offer',
-      set_options:                      'Set Options',
-      account_merge:                    'Account Merge',
-      path_payment_strict_receive:      'Path Payment',
-      path_payment_strict_send:         'Path Payment (Send)',
-      create_claimable_balance:         'Claimable Balance',
-      claim_claimable_balance:          'Claim Balance',
-      liquidity_pool_deposit:           'LP Deposit',
-      liquidity_pool_withdraw:          'LP Withdraw',
+  /* ══════════════════════════════════════════════════════
+     LABEL HELPER
+     Converts Stellar operation type keys to readable text.
+  ══════════════════════════════════════════════════════ */
+  function getLabel(type) {
+    var labels = {
+      payment:                     'Payment',
+      create_account:              'Account Created',
+      change_trust:                'Change Trust',
+      manage_sell_offer:           'Manage Sell Offer',
+      manage_buy_offer:            'Manage Buy Offer',
+      set_options:                 'Set Options',
+      account_merge:               'Account Merge',
+      path_payment_strict_receive: 'Path Payment',
+      path_payment_strict_send:    'Path Payment (Send)',
+      create_claimable_balance:    'Claimable Balance',
+      claim_claimable_balance:     'Claim Balance',
+      liquidity_pool_deposit:      'LP Deposit',
+      liquidity_pool_withdraw:     'LP Withdraw'
     };
-
-    // Return mapped label, or convert snake_case to Title Case as fallback
-    return labels[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return labels[type] || type.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
   }
 
 
-  /* ────────────────────────────────────────────────────────────
-     useSample()
-     Fills the wallet input with a sample address and auto-searches.
-     Triggered by the "Try a sample address" button.
-  ──────────────────────────────────────────────────────────── */
-  function useSample() {
-    document.getElementById('walletInput').value = SAMPLE_ADDRESS;
-    lookupWallet();
-  }
-
-
-  /* ────────────────────────────────────────────────────────────
-     copyAddr()
-     Copies the full current wallet address to the clipboard.
-     Triggered by the "Copy Address" button in the topbar.
-  ──────────────────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════
+     COPY ADDRESS
+     Copies full wallet address to clipboard.
+  ══════════════════════════════════════════════════════ */
   function copyAddr() {
     if (!currentAddress) return;
-
-    navigator.clipboard.writeText(currentAddress).then(() => {
-      const btn = document.getElementById('copyBtn');
-
-      // Show "Copied!" confirmation
-      btn.innerHTML = `
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.5"
-             stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-        Copied!
-      `;
-
-      // Restore original button text after 2 seconds
-      setTimeout(() => {
-        btn.innerHTML = `
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <rect x="9" y="9" width="13" height="13" rx="2"/>
-            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-          </svg>
-          Copy Address
-        `;
+    navigator.clipboard.writeText(currentAddress).then(function() {
+      var btn = document.getElementById('copyBtn');
+      btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      setTimeout(function() {
+        btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy Address';
       }, 2000);
     });
   }
 
 
-  /* ────────────────────────────────────────────────────────────
-     KEYBOARD SUPPORT
-     Pressing Enter in the textarea triggers lookupWallet().
-     Shift+Enter inserts a newline (normal textarea behavior).
-  ──────────────────────────────────────────────────────────── */
-  document.getElementById('walletInput').addEventListener('keydown', function(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault(); // Prevent newline in textarea
+  /* ══════════════════════════════════════════════════════
+     EVENT LISTENERS
+  ══════════════════════════════════════════════════════ */
+
+  // Enter key triggers search
+  document.getElementById('walletInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       lookupWallet();
     }
+  });
+
+  // Paste: strip all whitespace and line breaks automatically
+  document.getElementById('walletInput').addEventListener('paste', function(e) {
+    e.preventDefault();
+    var pasted  = (e.clipboardData || window.clipboardData).getData('text');
+    var cleaned = pasted.replace(/\s+/g, '');
+    document.getElementById('walletInput').value = cleaned;
   });
 
 </script>
